@@ -25,7 +25,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Preparar Android SDK
         uses: android-actions/setup-android@v3
@@ -39,15 +38,13 @@ jobs:
           test -f app/src/main/assets/index.html
 
       - name: Preparar archivos de recursos
-        run: |
-          mkdir -p app/src/main/assets
+        run: mkdir -p app/src/main/assets
 
-      - name: Descargar motor Excel SheetJS
+      - name: Descargar SheetJS
         run: |
           curl --fail --location --retry 3 \
             https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js \
             --output app/src/main/assets/xlsx.full.min.js
-
           test -s app/src/main/assets/xlsx.full.min.js
 
       - name: Descargar Chart.js
@@ -55,26 +52,22 @@ jobs:
           curl --fail --location --retry 3 \
             https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js \
             --output app/src/main/assets/chart.umd.min.js
-
           test -s app/src/main/assets/chart.umd.min.js
 
-      - name: Configurar Gradle 8.9
+      - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Dar permisos de compilación
-        run: chmod +x gradlew 2>/dev/null || true
-
       - name: Compilar APK
         run: gradle --no-daemon clean assembleDebug
 
-      - name: Verificar APK generada
+      - name: Verificar APK
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
           ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Guardar APK para descargar
+      - name: Guardar APK
         uses: actions/upload-artifact@v4
         with:
           name: Matibatidos-POS-APK-debug
