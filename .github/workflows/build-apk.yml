@@ -1,4 +1,4 @@
-name: Compilador APK Android
+name: Compilar APK Matibatidos RC6
 
 on:
   workflow_dispatch:
@@ -13,15 +13,11 @@ permissions:
 
 jobs:
   build:
-    name: Compilar APK Matibatidos
+    name: Compilar APK Android
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: ./matibatidos_apk
-
     steps:
-      - name: Descargar proyecto
+      - name: Descargar repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Java 17
@@ -30,48 +26,99 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Verificar estructura del proyecto
+      - name: Localizar proyecto Android
+        id: locate
+        shell: bash
         run: |
-          echo "Verificando carpeta del proyecto..."
-          pwd
+          echo "Buscando settings.gradle..."
+
+          FILE=$(find . \
+            -type f \
+            -name settings.gradle \
+            -not -path '*/.git/*' \
+            -not -path '*/build/*' \
+            -print -quit)
+
+          if [ -z "$FILE" ]; then
+            echo "ERROR: No se encontró settings.gradle."
+            echo "Archivos y carpetas disponibles:"
+            find . -maxdepth 4 -type f | head -100
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$FILE")
+
+          echo "Proyecto localizado en: $PROJECT_DIR"
+
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Verificar archivos Android
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
           test -f settings.gradle
           test -f build.gradle
           test -f app/build.gradle
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/assets/index.html
-          echo "Estructura correcta"
+          test -f app/src/main/java/com/matibatidos/pos/MainActivity.java
 
-      - name: Descargar SheetJS
+          echo "Todos los archivos principales están presentes."
+
+      - name: Preparar Android SDK
+        shell: bash
         run: |
+          set -e
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f -name sdkmanager -print -quit)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: No se encontró sdkmanager."
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+
+          "$SDKMANAGER" --install \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "platform-tools"
+
+      - name: Descargar SheetJS para Excel
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          mkdir -p app/src/main/assets
+
           curl --fail --location --retry 3 \
             https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js \
             --output app/src/main/assets/xlsx.full.min.js
-          test -s app/src/main/assets/xlsx.full.min.js
 
-      - name: Descargar Chart.js
-        run: |
-          curl --fail --location --retry 3 \
-            https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js \
-            --output app/src/main/assets/chart.umd.min.js
-          test -s app/src/main/assets/chart.umd.min.js
+          test -s app/src/main/assets/xlsx.full.min.js
 
       - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Compilar APK
-        run: gradle --no-daemon clean assembleDebug
+      - name: Compilar APK Matibatidos
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          gradle --no-daemon clean assembleDebug
 
-      - name: Verificar APK
+      - name: Verificar APK generada
+        working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
+
+          echo "APK generada correctamente:"
           ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Publicar APK
+      - name: Publicar APK para descargar
         uses: actions/upload-artifact@v4
         with:
-          name: Matibatidos-POS-APK-debug
-          path: matibatidos_apk/app/build/outputs/apk/debug/app-debug.apk
+          name: Matibatidos-POS-APK-RC6
+          path: ${{ steps.locate.outputs.project_dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
