@@ -26,8 +26,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Preparar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verificar SDK Android preinstalado
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME/platform-tools"
+          test -d "$ANDROID_HOME/platforms"
+          echo "SDK Android disponible"
 
       - name: Verificar estructura del proyecto
         run: |
@@ -37,7 +41,7 @@ jobs:
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/assets/index.html
 
-      - name: Preparar archivos de recursos
+      - name: Preparar recursos
         run: mkdir -p app/src/main/assets
 
       - name: Descargar SheetJS
@@ -54,7 +58,7 @@ jobs:
             --output app/src/main/assets/chart.umd.min.js
           test -s app/src/main/assets/chart.umd.min.js
 
-      - name: Configurar Gradle
+      - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
