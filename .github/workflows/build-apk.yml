@@ -1,4 +1,4 @@
-name: Construir APK Matibatidos
+name: Compilador APK Android
 
 on:
   workflow_dispatch:
@@ -13,8 +13,12 @@ permissions:
 
 jobs:
   build:
-    name: Compilar APK Android
+    name: Compilar APK Matibatidos
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./matibatidos_apk
 
     steps:
       - name: Descargar proyecto
@@ -26,23 +30,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Verificar SDK Android preinstalado
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          test -d "$ANDROID_HOME/platform-tools"
-          test -d "$ANDROID_HOME/platforms"
-          echo "SDK Android disponible"
-
       - name: Verificar estructura del proyecto
         run: |
+          echo "Verificando carpeta del proyecto..."
+          pwd
           test -f settings.gradle
           test -f build.gradle
           test -f app/build.gradle
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/assets/index.html
-
-      - name: Preparar recursos
-        run: mkdir -p app/src/main/assets
+          echo "Estructura correcta"
 
       - name: Descargar SheetJS
         run: |
@@ -71,10 +68,10 @@ jobs:
           test -s app/build/outputs/apk/debug/app-debug.apk
           ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Guardar APK
+      - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
           name: Matibatidos-POS-APK-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: matibatidos_apk/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
